@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indian Food Nutrition Predictor</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Arial', sans-serif; }
+        body { background: #f0f2f5; min-height: 100vh; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 15px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #2c3e50; margin-bottom: 25px; }
+        .model-info { background: #e8f4fd; padding: 15px; border-radius: 8px; margin-bottom: 25px; border-left: 4px solid #3498db; }
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #34495e; }
+        select { width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 14px; }
+        button { background: #3498db; color: white; padding: 15px; border: none; border-radius: 8px; font-size: 16px; width: 100%; cursor: pointer; }
+        button:hover { background: #2980b9; }
+        #result { margin-top: 25px; padding: 20px; background: #f8f9fa; border-radius: 10px; }
+        .nutrition-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px; }
+        .nutrition-item { background: white; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 3px 10px rgba(0,0,0,0.1); }
+        .nutrition-value { font-size: 24px; font-weight: bold; color: #27ae60; }
+        .nutrition-label { font-size: 14px; color: #7f8c8d; }
+        .error { color: #e74c3c; background: #fde8e6; padding: 15px; border-radius: 8px; }
+        .loading { text-align: center; color: #7f8c8d; padding: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍛 Indian Food Nutrition Predictor</h1>
+        <div id="modelInfo" class="model-info">Loading model information...</div>
+        
+        <div class="input-group">
+            <label for="foodName">FOOD NAME:</label>
+            <select id="foodName"><option value="">Select food</option></select>
+        </div>
+        <div class="input-group">
+            <label for="category">CATEGORY:</label>
+            <select id="category"><option value="">Select category</option></select>
+        </div>
+        <div class="input-group">
+            <label for="servingSize">SERVING SIZE:</label>
+            <select id="servingSize"><option value="">Select serving size</option></select>
+        </div>
+        <div class="input-group">
+            <label for="dietaryPreference">DIETARY PREFERENCE:</label>
+            <select id="dietaryPreference">
+                <option value="">Select preference</option>
+                <option value="Vegetarian">Vegetarian</option>
+                <option value="Non-Vegetarian">Non-Vegetarian</option>
+            </select>
+        </div>
+        
+        <button onclick="predictNutrition()" id="predictBtn">Predict Nutrition</button>
+        
+        <div id="result"><p>Select food details to get nutrition predictions.</p></div>
+    </div>
+
+    <script>
+        const foodNames = ['Aloo Gobi', 'Aloo Matar', 'Aloo Paratha', 'Aloo Puri', 'Aloo Tikki', 'Baingan Bharta', 'Barfi', 'Bhel Puri', 'Bhindi Masala', 'Biryani Masala', 'Butter Chicken', 'Butter Naan', 'Chana Chaat', 'Chicken 65', 'Chicken Biryani', 'Chicken Curry', 'Chicken Fried Rice', 'Chicken Korma', 'Chicken Tikka', 'Chole Bhature', 'Chole Masala', 'Coconut Chutney', 'Dahi Vada', 'Dal Tadka', 'Dhokla', 'Dosa (Plain)', 'Egg Bhurji', 'Egg Curry', 'Egg Paratha', 'Fish Curry (Rohu)', 'Fish Fry (Pomfret)', 'Gajar Halwa', 'Garam Masala', 'Gulab Jamun', 'Idli', 'Jalebi', 'Kachori', 'Kadhi', 'Keema Pav', 'Kesari', 'Kheer', 'Lassi', 'Lauki Sabzi', 'Mango Pickle', 'Masala Chai', 'Masala Dosa', 'Matar Paneer', 'Medu Vada', 'Methi Thepla', 'Mint Chutney', 'Misal Pav', 'Mushroom Masala', 'Mutton Biryani', 'Mutton Curry', 'Mutton Rogan Josh', 'Mysore Pak', 'Naan', 'Pakora', 'Palak Dal', 'Palak Paneer', 'Paneer Butter Masala', 'Paneer Tikka', 'Pani Puri', 'Papad', 'Paratha (Plain)', 'Pav Bhaji', 'Pesarattu', 'Poha', 'Pongal', 'Prawn Curry', 'Prawn Fry', 'Puri', 'Raita', 'Rajma Masala', 'Rasam', 'Rasgulla', 'Rava Idli', 'Roti (Whole Wheat)', 'Sabudana Khichdi', 'Sambar', 'Samosa', 'Sev Puri', 'Seviyan Kheer', 'Shahi Paneer', 'Tamarind Chutney', 'Tandoori Chicken', 'Tandoori Roti', 'Upma', 'Uttapam', 'Vada Pav', 'Veg Hakka Noodles', 'Vegetable Biryani', 'Vegetable Fried Rice', 'Vegetable Korma', 'Vegetable Pulao', 'Vegetable Samosa', 'Vegetable Upma'];
+        const foodCategories = ['Beverage', 'Breakfast', 'Condiment', 'Dessert', 'Lentil Dish', 'Main Dish', 'Side Dish', 'Snack', 'Soup', 'Spice Mix', 'Staple'];
+        const servingSizes = ['1 bowl (100g)', '1 bowl (150g)', '1 bowl (200g)', '1 cup (150ml)', '1 glass (200ml)', '1 piece (100g)', '1 piece (120g)', '1 piece (150g)', '1 piece (15g)', '1 piece (40g)', '1 piece (50g)', '1 piece (80g)', '1 plate (100g)', '1 plate (150g)', '1 plate (200g)', '1 plate (250g)', '1 tbsp (15g)', '1 tsp (5g)', '2 pieces (100g)', '2 pieces (150g)', '2 pieces (80g)', '2 tbsp (30g)', '4 pieces (100g)', '4 pieces (120g)', '6 pieces (120g)'];
+
+        function populateDropdown(id, options) {
+            const select = document.getElementById(id);
+            options.forEach(option => {
+                const opt = document.createElement('option');
+                opt.value = option;
+                opt.textContent = option;
+                select.appendChild(opt);
+            });
+        }
+
+        async function loadModelInfo() {
+            try {
+                const response = await fetch('/model-info');
+                const info = await response.json();
+                document.getElementById('modelInfo').innerHTML = info.model_loaded ? 
+                    '✅ Model loaded successfully | Features: ' + info.n_features : 
+                    '❌ Model not loaded';
+            } catch (error) {
+                document.getElementById('modelInfo').innerHTML = '❌ Could not load model info';
+            }
+            populateDropdown('foodName', foodNames);
+            populateDropdown('category', foodCategories);
+            populateDropdown('servingSize', servingSizes);
+        }
+
+        async function predictNutrition() {
+            const btn = document.getElementById('predictBtn');
+            const resultDiv = document.getElementById('result');
+            btn.disabled = true;
+            resultDiv.innerHTML = '<div class="loading">Calculating nutrition values...</div>';
+            
+            try {
+                const inputData = {
+                    'Food Name': document.getElementById('foodName').value,
+                    'Category': document.getElementById('category').value,
+                    'Serving Size': document.getElementById('servingSize').value,
+                    'Dietary Preference': document.getElementById('dietaryPreference').value
+                };
+
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({input_data: inputData})
+                });
+                
+                const data = await response.json();
+                if (data.error) throw new Error(data.error);
+                
+                resultDiv.innerHTML = `
+                    <h3>Nutrition Results</h3>
+                    <div class="nutrition-grid">
+                        <div class="nutrition-item"><div class="nutrition-value">${data['Calories (kcal)']}</div><div class="nutrition-label">Calories</div></div>
+                        <div class="nutrition-item"><div class="nutrition-value">${data['Protein (g)']}</div><div class="nutrition-label">Protein (g)</div></div>
+                        <div class="nutrition-item"><div class="nutrition-value">${data['Carbohydrates (g)']}</div><div class="nutrition-label">Carbs (g)</div></div>
+                        <div class="nutrition-item"><div class="nutrition-value">${data['Fats (g)']}</div><div class="nutrition-label">Fats (g)</div></div>
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadModelInfo);
+    </script>
+</body>
+</html>
